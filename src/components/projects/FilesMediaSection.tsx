@@ -73,7 +73,17 @@ export default function FilesMediaSection({ project }: FilesMediaSectionProps) {
       setFiles((prev) => ({ ...prev, [category]: fetchedFiles }));
     } catch (error) {
       console.error('Error loading files:', error);
-      toast.error('Failed to load files');
+      let errorMessage = 'Failed to load files';
+
+      if (error instanceof DriveApiError) {
+        if (error.status === 403) {
+          errorMessage = 'Access denied to files. Check permissions.';
+        } else if (error.status === 404) {
+          errorMessage = 'Folder not found. Reinitialize Google Drive integration.';
+        }
+      }
+
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -182,18 +192,32 @@ export default function FilesMediaSection({ project }: FilesMediaSectionProps) {
         setUploadQueue((prev) => prev.filter((t) => t.id !== task.id));
       }, 2000);
     } catch (error) {
-      const errorMessage =
-        error instanceof DriveApiError ? error.message : 'Upload failed';
+      let userFriendlyMessage = 'Upload failed. Please try again.';
+
+      if (error instanceof DriveApiError) {
+        if (error.status === 401 || error.status === 403) {
+          userFriendlyMessage =
+            'Access denied. Check Google Drive configuration.';
+        } else if (error.status === 404) {
+          userFriendlyMessage =
+            'Folder not found. Please set up Google Drive integration.';
+        } else if (error.status === 429) {
+          userFriendlyMessage =
+            'Too many uploads. Please wait a moment and try again.';
+        } else if (error.details) {
+          userFriendlyMessage = error.details;
+        }
+      }
 
       setUploadQueue((prev) =>
         prev.map((t) =>
           t.id === task.id
-            ? { ...t, status: 'error' as const, error: errorMessage }
+            ? { ...t, status: 'error' as const, error: userFriendlyMessage }
             : t
         )
       );
 
-      toast.error(`Failed to upload ${task.file.name}: ${errorMessage}`);
+      toast.error(`Failed to upload ${task.file.name}: ${userFriendlyMessage}`);
     } finally {
       setActiveUploads((prev) => {
         const next = new Set(prev);
@@ -224,7 +248,17 @@ export default function FilesMediaSection({ project }: FilesMediaSectionProps) {
       await loadFiles(category as 'raw' | 'edited' | 'thumbnails');
     } catch (error) {
       console.error('Error deleting file:', error);
-      toast.error('Failed to delete file');
+      let errorMessage = 'Failed to delete file';
+
+      if (error instanceof DriveApiError) {
+        if (error.status === 403) {
+          errorMessage = 'Permission denied. Cannot delete file.';
+        } else if (error.status === 404) {
+          errorMessage = 'File not found or already deleted.';
+        }
+      }
+
+      toast.error(errorMessage);
     }
   };
 

@@ -1,5 +1,6 @@
 import { drive, MIME_TYPES, FOLDER_NAMES } from '../config/googleDrive.js';
 import { sanitizeFileName } from '../utils/fileValidation.js';
+import { logDriveError, formatDriveError } from '../utils/errorHandler.js';
 import { Readable } from 'stream';
 
 const DRIVE_ROOT_FOLDER_ID = process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID;
@@ -27,7 +28,9 @@ async function createFolder(name, parentId) {
 
     return response.data;
   } catch (error) {
-    console.error(`Error creating folder ${name}:`, error.message);
+    const errorInfo = logDriveError(error, `createFolder: ${name}`, {
+      folderId: parentId,
+    });
     throw error;
   }
 }
@@ -69,11 +72,16 @@ export async function createProjectFolder(req, res) {
       data: folderStructure,
     });
   } catch (error) {
-    console.error('Error creating project folder:', error);
+    const errorInfo = logDriveError(error, 'createProjectFolder', {
+      projectId,
+      projectTitle,
+    });
     res.status(500).json({
       success: false,
-      error: 'Failed to create project folder structure',
-      details: error.message,
+      error: errorInfo.userMessage,
+      details: errorInfo.technicalMessage,
+      errorType: errorInfo.errorType,
+      suggestion: errorInfo.suggestion,
     });
   }
 }
@@ -136,11 +144,18 @@ export async function uploadFile(req, res) {
       },
     });
   } catch (error) {
-    console.error('Error uploading file:', error);
+    const errorInfo = logDriveError(error, 'uploadFile', {
+      projectId,
+      category,
+      fileName: req.file?.originalname,
+      fileSize: req.file?.size,
+    });
     res.status(500).json({
       success: false,
-      error: 'Failed to upload file',
-      details: error.message,
+      error: errorInfo.userMessage,
+      details: errorInfo.technicalMessage,
+      errorType: errorInfo.errorType,
+      suggestion: errorInfo.suggestion,
     });
   }
 }
@@ -187,11 +202,17 @@ export async function getProjectFiles(req, res) {
       cached: false,
     });
   } catch (error) {
-    console.error('Error fetching project files:', error);
+    const errorInfo = logDriveError(error, 'getProjectFiles', {
+      projectId,
+      folderId,
+      category,
+    });
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch files',
-      details: error.message,
+      error: errorInfo.userMessage,
+      details: errorInfo.technicalMessage,
+      errorType: errorInfo.errorType,
+      suggestion: errorInfo.suggestion,
     });
   }
 }
@@ -221,11 +242,17 @@ export async function deleteFile(req, res) {
       message: 'File deleted successfully',
     });
   } catch (error) {
-    console.error('Error deleting file:', error);
+    const errorInfo = logDriveError(error, 'deleteFile', {
+      fileId,
+      projectId,
+      category,
+    });
     res.status(500).json({
       success: false,
-      error: 'Failed to delete file',
-      details: error.message,
+      error: errorInfo.userMessage,
+      details: errorInfo.technicalMessage,
+      errorType: errorInfo.errorType,
+      suggestion: errorInfo.suggestion,
     });
   }
 }
@@ -244,11 +271,15 @@ export async function getFileMetadata(req, res) {
       data: response.data,
     });
   } catch (error) {
-    console.error('Error fetching file metadata:', error);
+    const errorInfo = logDriveError(error, 'getFileMetadata', {
+      fileId,
+    });
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch file metadata',
-      details: error.message,
+      error: errorInfo.userMessage,
+      details: errorInfo.technicalMessage,
+      errorType: errorInfo.errorType,
+      suggestion: errorInfo.suggestion,
     });
   }
 }
